@@ -103,12 +103,12 @@ function countWordsAndPhrasesWithTimeWeight(posts: PostTrend[], startTime: Date,
     if (post.word2 && post.word2.trim() !== "") {
       incrementWeightedCount(wordCounts, post.word2.trim().toLowerCase(), timeWeight);
       const phrase2 = `${post.word.trim().toLowerCase()} ${post.word2.trim().toLowerCase()}`;
-      incrementWeightedCount(phraseCounts, phrase2, timeWeight * 4);
+      incrementWeightedCount(phraseCounts, phrase2, timeWeight);
 
       if (post.word3 && post.word3.trim() !== "") {
         incrementWeightedCount(wordCounts, post.word3.trim().toLowerCase(), timeWeight);
         const phrase3 = `${post.word.trim().toLowerCase()} ${post.word2.trim().toLowerCase()} ${post.word3.trim().toLowerCase()}`;
-        incrementWeightedCount(phraseCounts, phrase3, timeWeight * 8);
+        incrementWeightedCount(phraseCounts, phrase3, timeWeight);
       }
     }
   }
@@ -135,10 +135,14 @@ function calculateAdvancedTrendScores(recentCounts: Counts, olderCounts: Counts)
     ...Object.values(olderCounts.phraseCounts)
   );
 
-  function calculateScore(recent: number, older: number): number {
+  function calculateScore(recent: number, older: number, phraseLength: number): number {
     const relativeIncrease = (recent - older) / (older + 1);
     const absoluteFactor = Math.log(recent + 1) / Math.log(maxCount + 1);
-    const rawScore = relativeIncrease * absoluteFactor;
+    let rawScore = relativeIncrease * absoluteFactor;
+    
+    const lengthFactor = 1 + (phraseLength - 1) * 0.5;
+    rawScore *= lengthFactor;
+  
     return (Math.atan(rawScore) / (Math.PI / 2) + 1) / 2;
   };
 
@@ -157,7 +161,8 @@ function calculateAdvancedTrendScores(recentCounts: Counts, olderCounts: Counts)
 
     if (recentCount === 0 && olderCount === 0) continue;
 
-    const trendScore = calculateScore(recentCount, olderCount);
+    const phraseLength = phrase.split(" ").length;
+    const trendScore = calculateScore(recentCount, olderCount, phraseLength);
     trendScores.push({ phrase, trendScore, recentCount, olderCount });
   };
 
