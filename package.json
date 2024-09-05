@@ -1,0 +1,26 @@
+{
+  "name": "subnect-trend",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "deploy": "dotenv -e .env.production -- npx wrangler deploy",
+    "dev": "dotenv -e .env.development -- npx prisma generate && wrangler dev --test-scheduled",
+    "start": "dotenv -e .env.development -- npx prisma generate && wrangler dev",
+    "test": "dotenv -e .env.development -- npx vitest",
+    "cf-typegen": "wrangler types"
+  },
+  "dependencies": {
+    "prisma": "5.15.0",
+    "@prisma/client": "5.15.0",
+    "@tidbcloud/prisma-adapter": "5.15.0",
+    "@tidbcloud/serverless": "^0.2.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.4.5",
+    "@cloudflare/workers-types": "^4.20240821.1",
+    "typescript": "^5.5.2",
+    "vitest": "1.5.0",
+    "wrangler": "^3.60.3",
+    "dotenv-cli": "7.4.2"
+  }
+}

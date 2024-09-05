@@ -1,0 +1,596 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+//----------------------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(uuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  Account         Account[]
+  Session         Session[]
+  Authenticator   Authenticator[]
+  AuthChangeEmail AuthChangeEmail?
+  UserSettings    UserSettings?
+  Profile         Profile[]
+
+  @@map("AuthUser")
+}
+
+model Account {
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?  @db.Text
+  access_token      String?  @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?  @db.Text
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@id([provider, providerAccountId])
+  @@map("AuthAccount")
+}
+
+model Session {
+  sessionId    String    @id @default(uuid())
+  sessionToken String    @unique
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expires      DateTime
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  ip           String
+  country      String?
+  region       String?
+  city         String?
+  latitude     Float?
+  longitude    Float?
+  userAgent    String
+  deviceType   String?
+  browser      String?
+  deletedAt    DateTime?
+
+  @@map("AuthSession")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+  @@map("AuthVerificationToken")
+}
+
+model Authenticator {
+  id                   String  @id @default(uuid())
+  credentialID         String  @unique
+  userId               String
+  user                 User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  providerAccountId    String
+  credentialPublicKey  String
+  counter              Int
+  credentialDeviceType String
+  credentialBackedUp   Boolean
+  transports           String?
+
+  @@map("AuthAuthenticator")
+}
+
+//----------------------------------------------------------------------------------------
+
+model AuthChangeEmail {
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email     String
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([email])
+}
+
+model AuthBanIP {
+  banId    String   @id @default(uuid())
+  ip       String   @unique
+  bannedAt DateTime @default(now())
+
+  @@index([ip])
+}
+
+model AuthBanEmail {
+  banId    String   @id @default(uuid())
+  email    String   @unique
+  bannedAt DateTime @default(now())
+
+  @@index([email])
+}
+
+model TranslateLimit {
+  ip        String
+  createdAt DateTime @default(now())
+
+  @@id([ip, createdAt])
+}
+
+model UserSettings {
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  language  String?
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Profile {
+  profileId         String    @id @default(uuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  username          String    @unique @default(nanoid(15))
+  nickname          String    @default("New user")
+  iconId            String
+  icon              Asset     @relation("icon", fields: [iconId], references: [assetId])
+  headerId          String?
+  header            Asset?    @relation("header", fields: [headerId], references: [assetId])
+  bio               String?   @db.Text
+  pinnedPostId      String?
+  pinnedPost        Post?     @relation("pinnedPost", fields: [pinnedPostId], references: [postId])
+  followingCount    Int       @default(0)
+  followersCount    Int       @default(0)
+  hidden            Boolean   @default(false)
+  banned            Boolean   @default(false)
+  official          Boolean   @default(false)
+  subscriptionEndAt DateTime?
+  createdAt         DateTime  @default(now())
+  deletedAt         DateTime?
+
+  Asset                 Asset[]
+  ProfileSettings       ProfileSettings?
+  ProfileWebPush        ProfileWebPush[]
+  Notification          Notification[]
+  NotificationSender    Notification[]        @relation("sender")
+  NotificationSettings  NotificationSettings?
+  Follow                Follow[]
+  FollowFollower        Follow[]              @relation("follower")
+  Block                 Block[]
+  BlockBlocked          Block[]               @relation("blocked")
+  List                  List[]
+  ListMember            ListMember[]
+  ListFollow            ListFollow[]          @relation("follower")
+  Post                  Post[]
+  PostView              PostView[]
+  PostLike              PostLike[]
+  PostReaction          PostReaction[]
+  PostQuote             PostQuote[]
+  PostTrend             PostTrend[]
+  BookmarkFolder        BookmarkFolder[]
+  ReportPost            ReportPost[]
+  MessageSender         Message[]             @relation("sender")
+  MessageReceiver       Message[]             @relation("receiver")
+  MessageHiddenSender   MessageHidden[]       @relation("sender")
+  MessageHiddenReceiver MessageHidden[]       @relation("receiver")
+  ReportProfile         ReportProfile[]
+  ReportProfileReported ReportProfile[]       @relation("reported")
+
+  @@index([profileId])
+  @@index([username])
+  @@index([createdAt])
+}
+
+model Asset {
+  assetId   String   @id @default(uuid())
+  profileId String?
+  profile   Profile? @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  category  String   @default("public")
+  assetName String
+  assetSize Int
+  createdAt DateTime @default(now())
+
+  ProfileHeader Profile[]      @relation("header")
+  ProfileIcon   Profile[]      @relation("icon")
+  List          List[]         @relation("icon")
+  AssetImage    AssetImage?
+  AssetVideo    AssetVideo?
+  PostAsset     PostAsset[]
+  MessageAsset  MessageAsset[]
+
+  @@index([profileId])
+}
+
+model AssetImage {
+  assetId String  @unique
+  asset   Asset   @relation(fields: [assetId], references: [assetId], onDelete: Cascade)
+  thumb   Boolean @default(false)
+  medium  Boolean @default(false)
+  alt     String?
+  aspect  Float
+  spoiler Boolean @default(false)
+
+  @@index([assetId])
+}
+
+model AssetVideo {
+  assetId String  @unique
+  asset   Asset   @relation(fields: [assetId], references: [assetId], onDelete: Cascade)
+  spoiler Boolean @default(false)
+
+  @@index([assetId])
+}
+
+model ProfileSettings {
+  profileId   String   @unique
+  profile     Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  darkMode    Boolean  @default(false)
+  customColor Boolean  @default(false)
+  backColor   String   @default("e6e6e6")
+  borderColor String   @default("808080")
+  accentColor String   @default("000000")
+  fontColor   String   @default("000000")
+  updatedAt   DateTime @updatedAt
+
+  @@index([profileId])
+}
+
+model ProfileWebPush {
+  pushId    String  @id @default(uuid())
+  profileId String
+  profile   Profile @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  endpoint  String  @db.Text
+  keys      String
+
+  @@index([profileId])
+}
+
+model Notification {
+  notificationId String    @id @default(uuid())
+  profileId      String
+  profile        Profile   @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  appView        Boolean   @default(true)
+  type           String
+  senderId       String
+  sender         Profile   @relation("sender", fields: [senderId], references: [profileId])
+  postId         String?
+  post           Post?     @relation(fields: [postId], references: [postId], onDelete: Cascade)
+  createdAt      DateTime  @default(now())
+  readAt         DateTime?
+
+  @@index([profileId])
+  @@index([createdAt])
+}
+
+model NotificationSettings {
+  profileId     String  @unique
+  profile       Profile @relation(fields: [profileId], references: [profileId])
+  pushReactions Boolean @default(true)
+  pushReplies   Boolean @default(true)
+  pushMentions  Boolean @default(true)
+  pushReposts   Boolean @default(true)
+  pushQuotes    Boolean @default(true)
+  pushFollows   Boolean @default(true)
+  pushMessages  Boolean @default(true)
+  appReactions  Boolean @default(true)
+  appReplies    Boolean @default(true)
+  appMentions   Boolean @default(true)
+  appReposts    Boolean @default(true)
+  appQuotes     Boolean @default(true)
+  appFollows    Boolean @default(true)
+
+  @@index([profileId])
+}
+
+model Follow {
+  profileId  String
+  profile    Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  followerId String
+  follower   Profile  @relation("follower", fields: [followerId], references: [profileId], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([profileId, followerId])
+  @@index([profileId])
+  @@index([followerId])
+}
+
+model Block {
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  blockedId String
+  blocked   Profile  @relation("blocked", fields: [blockedId], references: [profileId], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([profileId, blockedId])
+  @@index([profileId])
+  @@index([blockedId])
+}
+
+model List {
+  listId      String   @id @default(uuid())
+  name        String
+  description String?  @db.Text
+  iconId      String
+  icon        Asset    @relation("icon", fields: [iconId], references: [assetId])
+  profileId   String
+  profile     Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  public      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  ListMember ListMember[]
+  ListFollow ListFollow[]
+
+  @@index([profileId])
+}
+
+model ListMember {
+  listId    String
+  list      List     @relation(fields: [listId], references: [listId], onDelete: Cascade)
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([listId, profileId])
+  @@index([profileId])
+}
+
+model ListFollow {
+  listId     String
+  list       List     @relation(fields: [listId], references: [listId], onDelete: Cascade)
+  followerId String
+  follower   Profile  @relation("follower", fields: [followerId], references: [profileId], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([listId, followerId])
+  @@index([followerId])
+}
+
+model Post {
+  postId        String    @id @default(uuid())
+  profileId     String
+  profile       Profile   @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  replyToId     String?
+  replyTo       Post?     @relation("replyTo", fields: [replyToId], references: [postId])
+  repost        Boolean   @default(false)
+  text          String?   @db.Text
+  language      String    @default("en")
+  repliesCount  Int       @default(0)
+  repostCount   Int       @default(0)
+  quoteCount    Int       @default(0)
+  reactionCount Int       @default(0)
+  likeCount     Int       @default(0)
+  readCount     Int       @default(0)
+  viewCount     Int       @default(0)
+  scope         String    @default("public")
+  violation     Boolean?
+  edited        Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  deletedAt     DateTime?
+
+  Profile         Profile[]         @relation("pinnedPost")
+  Notification    Notification[]
+  PostReplyTo     Post[]            @relation("replyTo")
+  PostEditHistory PostEditHistory[]
+  PostAsset       PostAsset[]
+  PostView        PostView[]
+  PostLike        PostLike[]
+  PostReaction    PostReaction[]
+  PostQuoteEmbed  PostQuote[]       @relation("embed")
+  PostQuoteParent PostQuote[]       @relation("parent")
+  Bookmark        Bookmark[]
+  ReportPost      ReportPost[]
+
+  @@index([profileId])
+  @@index([replyToId])
+  @@index([createdAt])
+}
+
+model PostEditHistory {
+  editId   String   @id @default(uuid())
+  postId   String
+  post     Post     @relation(fields: [postId], references: [postId], onDelete: Cascade)
+  text     String   @db.Text
+  editedAt DateTime @default(now())
+
+  @@index([postId])
+}
+
+model PostAsset {
+  postId  String
+  post    Post   @relation(fields: [postId], references: [postId], onDelete: Cascade)
+  assetId String
+  asset   Asset  @relation(fields: [assetId], references: [assetId], onDelete: Cascade)
+
+  @@id([postId, assetId])
+  @@index([postId])
+  @@index([assetId])
+}
+
+model PostView {
+  viewId    String   @id @default(uuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  postId    String
+  post      Post     @relation(fields: [postId], references: [postId], onDelete: Cascade)
+  viewedAt  DateTime @default(now())
+
+  @@index([postId])
+  @@index([profileId])
+}
+
+model PostLike {
+  likeId    String   @id @default(uuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [postId], onDelete: Cascade)
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([postId, profileId])
+  @@index([postId])
+  @@index([profileId])
+}
+
+model PostReaction {
+  reactionId String   @id @default(uuid())
+  postId     String
+  post       Post     @relation(fields: [postId], references: [postId], onDelete: Cascade)
+  profileId  String
+  profile    Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  emoji      String
+  createdAt  DateTime @default(now())
+
+  @@unique([postId, profileId])
+  @@index([postId])
+  @@index([profileId])
+}
+
+model PostQuote {
+  quoteId   String   @id @default(uuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  parentId  String
+  parent    Post     @relation("parent", fields: [parentId], references: [postId], onDelete: Cascade)
+  embedId   String
+  embed     Post     @relation("embed", fields: [embedId], references: [postId], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([parentId])
+  @@index([embedId])
+  @@index([profileId])
+}
+
+model PostTrend {
+  id        String   @id @default(uuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  word      String
+  word2     String?
+  word3     String?
+  createdAt DateTime @default(now())
+
+  @@index([word])
+  @@index([word, word2])
+  @@index([word, word2, word3])
+  @@index([createdAt])
+}
+
+model BookmarkFolder {
+  folderId  String   @id @default(uuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  Bookmark Bookmark[]
+
+  @@index([profileId])
+}
+
+model Bookmark {
+  postId    String
+  post      Post           @relation(fields: [postId], references: [postId], onDelete: Cascade)
+  folderId  String
+  folder    BookmarkFolder @relation(fields: [folderId], references: [folderId], onDelete: Cascade)
+  createdAt DateTime       @default(now())
+
+  @@unique([postId, folderId])
+  @@index([postId])
+  @@index([folderId])
+}
+
+model Trend {
+  id        String   @id @default(uuid())
+  word      String
+  postCount Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model Message {
+  messageId  String    @id @default(uuid())
+  senderId   String
+  sender     Profile   @relation("sender", fields: [senderId], references: [profileId], onDelete: Cascade)
+  receiverId String
+  receiver   Profile   @relation("receiver", fields: [receiverId], references: [profileId], onDelete: Cascade)
+  replyToId  String?
+  replyTo    Message?  @relation("replyTo", fields: [replyToId], references: [messageId])
+  text       String?
+  createdAt  DateTime  @default(now())
+  readAt     DateTime?
+  deletedAt  DateTime?
+  violation  Boolean?
+
+  MessageReplyTo Message[]      @relation("replyTo")
+  MessageAsset   MessageAsset[]
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([createdAt])
+}
+
+model MessageAsset {
+  messageId String
+  message   Message @relation(fields: [messageId], references: [messageId], onDelete: Cascade)
+  assetId   String
+  asset     Asset   @relation(fields: [assetId], references: [assetId], onDelete: Cascade)
+
+  @@id([messageId, assetId])
+  @@index([messageId])
+  @@index([assetId])
+}
+
+model MessageHidden {
+  hiddenId   String  @id @default(uuid())
+  senderId   String
+  sender     Profile @relation("sender", fields: [senderId], references: [profileId], onDelete: Cascade)
+  receiverId String
+  receiver   Profile @relation("receiver", fields: [receiverId], references: [profileId], onDelete: Cascade)
+  replyToId  String?
+
+  @@index([senderId])
+  @@index([receiverId])
+}
+
+model ReportProfile {
+  reportId   String   @id @default(uuid())
+  profileId  String
+  profile    Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  reportedId String
+  reported   Profile  @relation("reported", fields: [reportedId], references: [profileId], onDelete: Cascade)
+  reason     String   @db.Text
+  createdAt  DateTime @default(now())
+
+  @@index([profileId])
+  @@index([reportedId])
+}
+
+model ReportPost {
+  reportId  String   @id @default(uuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  postId    String
+  post      Post     @relation(fields: [postId], references: [postId], onDelete: Cascade)
+  reason    String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([profileId])
+  @@index([postId])
+}
