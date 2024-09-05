@@ -11,7 +11,6 @@ interface WordCount {
 };
 
 interface Counts {
-  wordCounts: WordCount;
   phraseCounts: WordCount;
 };
 
@@ -51,8 +50,8 @@ export default {
       take: 1000000,
     });
 
-    const recentCounts = countWordsAndPhrasesWithTimeWeight(recentPosts, fortyEightHoursAgo, now);
-    const olderCounts = countWordsAndPhrasesWithTimeWeight(olderPosts, ninetySixHoursAgo, fortyEightHoursAgo);
+    const recentCounts = countWordsAndPhrasesWithTimeWeight(recentPosts);
+    const olderCounts = countWordsAndPhrasesWithTimeWeight(olderPosts);
 
     let trendScores = calculateAdvancedTrendScores(recentCounts, olderCounts);
 
@@ -88,81 +87,46 @@ export default {
   },
 };
 
-function countWordsAndPhrasesWithTimeWeight(posts: PostTrend[], startTime: Date, endTime: Date): Counts {
-  const wordCounts: WordCount = {};
+function countWordsAndPhrasesWithTimeWeight(posts: PostTrend[]): Counts {
   const phraseCounts: WordCount = {};
-  const totalDuration = endTime.getTime() - startTime.getTime();
 
   for (const post of posts) {
     if (!post.word || post.word.trim() === "") continue;
-
-    const timeWeight = calculateTimeWeight(post.createdAt, startTime, endTime, totalDuration);
-
-    incrementWeightedCount(wordCounts, post.word.trim().toLowerCase(), timeWeight);
-
+    phraseCounts[post.word.trim().toLowerCase()] = (phraseCounts[post.word.trim().toLowerCase()] || 0) + 1;
     if (post.word2 && post.word2.trim() !== "") {
-      incrementWeightedCount(wordCounts, post.word2.trim().toLowerCase(), timeWeight);
       const phrase2 = `${post.word.trim().toLowerCase()} ${post.word2.trim().toLowerCase()}`;
-      incrementWeightedCount(phraseCounts, phrase2, timeWeight);
-
+      phraseCounts[phrase2] = (phraseCounts[phrase2] || 0) + 1.5;
       if (post.word3 && post.word3.trim() !== "") {
-        incrementWeightedCount(wordCounts, post.word3.trim().toLowerCase(), timeWeight);
         const phrase3 = `${post.word.trim().toLowerCase()} ${post.word2.trim().toLowerCase()} ${post.word3.trim().toLowerCase()}`;
-        incrementWeightedCount(phraseCounts, phrase3, timeWeight);
+        phraseCounts[phrase3] = (phraseCounts[phrase3] || 0) + 3;
       }
     }
   }
 
-  return { wordCounts, phraseCounts };
+  return { phraseCounts };
 }
-
-function calculateTimeWeight(createdAt: Date, startTime: Date, endTime: Date, totalDuration: number): number {
-  const timeElapsed = createdAt.getTime() - startTime.getTime();
-  const normalizedTime = timeElapsed / totalDuration;
-  return 1 + (1 - normalizedTime) * 0.5;
-};
-
-function incrementWeightedCount(counts: WordCount, key: string, weight: number): void {
-  counts[key] = (counts[key] || 0) + weight;
-};
 
 function calculateAdvancedTrendScores(recentCounts: Counts, olderCounts: Counts): TrendScore[] {
   const trendScores: TrendScore[] = [];
   const maxCount = Math.max(
-    ...Object.values(recentCounts.wordCounts),
     ...Object.values(recentCounts.phraseCounts),
-    ...Object.values(olderCounts.wordCounts),
     ...Object.values(olderCounts.phraseCounts)
   );
 
-  function calculateScore(recent: number, older: number, phraseLength: number): number {
-    const relativeIncrease = (recent - older) / (older + 1);
-    const absoluteFactor = Math.log(recent + 1) / Math.log(maxCount + 1);
-    let rawScore = relativeIncrease * absoluteFactor;
-    
-    const lengthFactor = 1 + (phraseLength - 1) * 0.5;
-    rawScore *= lengthFactor;
-  
-    return (Math.atan(rawScore) / (Math.PI / 2) + 1) / 2;
-  };
-
   const allPhrases = new Set([
-    ...Object.keys(recentCounts.wordCounts),
     ...Object.keys(recentCounts.phraseCounts),
-    ...Object.keys(olderCounts.wordCounts),
     ...Object.keys(olderCounts.phraseCounts)
   ]);
 
   for (const phrase of allPhrases) {
     if (phrase.trim() === "") continue;
 
-    const recentCount = (recentCounts.wordCounts[phrase] || 0) + (recentCounts.phraseCounts[phrase] || 0);
-    const olderCount = (olderCounts.wordCounts[phrase] || 0) + (olderCounts.phraseCounts[phrase] || 0);
+    const recentCount = (recentCounts.phraseCounts[phrase] || 0);
+    const olderCount = (olderCounts.phraseCounts[phrase] || 0);
 
     if (recentCount === 0 && olderCount === 0) continue;
-
-    const phraseLength = phrase.split(" ").length;
-    const trendScore = calculateScore(recentCount, olderCount, phraseLength);
+    
+    const trendScore = recentCount - olderCount;
     trendScores.push({ phrase, trendScore, recentCount, olderCount });
   };
 
@@ -175,30 +139,7 @@ function removeDuplicatesAndSort(trendScores: TrendScore[]): TrendScore[] {
   trendScores.sort((a, b) => b.trendScore - a.trendScore);
 
   for (const score of trendScores) {
-    const words = score.phrase.split(" ");
-    let shouldAdd = true;
-
-    for (const [existingPhrase, existingScore] of uniqueScores) {
-      const existingWords = existingPhrase.split(" ");
-
-      if (words.length !== existingWords.length) {
-        const shorterPhrase = words.length < existingWords.length ? score.phrase : existingPhrase;
-        const longerPhrase = words.length < existingWords.length ? existingPhrase : score.phrase;
-
-        if (longerPhrase.includes(shorterPhrase)) {
-          if (score.trendScore > existingScore.trendScore) {
-            uniqueScores.delete(existingPhrase);
-          } else {
-            shouldAdd = false;
-            break;
-          }
-        }
-      }
-    }
-
-    if (shouldAdd) {
-      uniqueScores.set(score.phrase, score);
-    }
+    uniqueScores.set(score.phrase, score);
   }
 
   return Array.from(uniqueScores.values());
