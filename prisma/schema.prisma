@@ -332,7 +332,7 @@ model List {
 
   ListMember ListMember[]
   ListFollow ListFollow[]
-  Post       Post[]
+  Post       Post[]       @relation("scopeList")
 
   @@index([profileId])
 }
@@ -377,7 +377,7 @@ model Post {
   viewCount     Int       @default(0)
   scope         String    @default("public")
   scopeListId   String?
-  list          List?      @relation(fields: [scopeListId], references: [listId], onDelete: Cascade)
+  scopeList     List?     @relation("scopeList", fields: [scopeListId], references: [listId], onDelete: Cascade)
   violation     Boolean?
   edited        Boolean   @default(false)
   createdAt     DateTime  @default(now())
