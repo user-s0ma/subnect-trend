@@ -219,8 +219,6 @@ model Asset {
 model AssetImage {
   assetId String  @unique
   asset   Asset   @relation(fields: [assetId], references: [assetId], onDelete: Cascade)
-  thumb   Boolean @default(false)
-  medium  Boolean @default(false)
   alt     String?
   aspect  Float
   spoiler Boolean @default(false)
@@ -334,6 +332,7 @@ model List {
 
   ListMember ListMember[]
   ListFollow ListFollow[]
+  Post       Post[]
 
   @@index([profileId])
 }
@@ -377,6 +376,8 @@ model Post {
   readCount     Int       @default(0)
   viewCount     Int       @default(0)
   scope         String    @default("public")
+  scopeListId   String?
+  list          List?      @relation(fields: [scopeListId], references: [listId], onDelete: Cascade)
   violation     Boolean?
   edited        Boolean   @default(false)
   createdAt     DateTime  @default(now())
@@ -532,7 +533,7 @@ model Message {
   receiver   Profile   @relation("receiver", fields: [receiverId], references: [profileId], onDelete: Cascade)
   replyToId  String?
   replyTo    Message?  @relation("replyTo", fields: [replyToId], references: [messageId])
-  text       String?
+  text       String?   @db.Text
   createdAt  DateTime  @default(now())
   readAt     DateTime?
   deletedAt  DateTime?
