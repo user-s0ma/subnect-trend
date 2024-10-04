@@ -375,9 +375,9 @@ model Post {
   likeCount     Int       @default(0)
   readCount     Int       @default(0)
   viewCount     Int       @default(0)
-  scope         String    @default("public")
+  scope         String?
   scopeListId   String?
-  scopeList     List?     @relation("scopeList", fields: [scopeListId], references: [listId], onDelete: Cascade)
+  scopeList     List?     @relation("scopeList", fields: [scopeListId], references: [listId], onDelete: SetNull)
   violation     Boolean?
   edited        Boolean   @default(false)
   createdAt     DateTime  @default(now())
