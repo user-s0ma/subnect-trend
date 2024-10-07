@@ -37,7 +37,7 @@ export default {
           gte: fortyEightHoursAgo,
         },
       },
-      take: 1000000,
+      take: 10000,
     });
 
     const olderPosts = await prisma.postTrend.findMany({
@@ -47,7 +47,7 @@ export default {
           lt: fortyEightHoursAgo,
         },
       },
-      take: 1000000,
+      take: 10000,
     });
 
     const recentCounts = countWordsAndPhrasesWithTimeWeight(recentPosts);
