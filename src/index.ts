@@ -92,12 +92,12 @@ function countWordsAndPhrasesWithTimeWeight(posts: PostTrend[]): Counts {
 
   for (const post of posts) {
     if (!post.word || post.word.trim() === "") continue;
-    phraseCounts[post.word.trim().toLowerCase()] = (phraseCounts[post.word.trim().toLowerCase()] || 0) + 1;
+    phraseCounts[post.word.trim()] = (phraseCounts[post.word.trim()] || 0) + 1;
     if (post.word2 && post.word2.trim() !== "") {
-      const phrase2 = `${post.word.trim().toLowerCase()} ${post.word2.trim().toLowerCase()}`;
+      const phrase2 = `${post.word.trim()} ${post.word2.trim()}`;
       phraseCounts[phrase2] = (phraseCounts[phrase2] || 0) + 1.5;
       if (post.word3 && post.word3.trim() !== "") {
-        const phrase3 = `${post.word.trim().toLowerCase()} ${post.word2.trim().toLowerCase()} ${post.word3.trim().toLowerCase()}`;
+        const phrase3 = `${post.word.trim()} ${post.word2.trim()} ${post.word3.trim()}`;
         phraseCounts[phrase3] = (phraseCounts[phrase3] || 0) + 3;
       }
     }
