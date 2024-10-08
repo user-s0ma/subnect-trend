@@ -125,13 +125,6 @@ model AuthBanEmail {
   @@index([email])
 }
 
-model TranslateLimit {
-  ip        String
-  createdAt DateTime @default(now())
-
-  @@id([ip, createdAt])
-}
-
 model UserSettings {
   userId    String   @unique
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -235,15 +228,16 @@ model AssetVideo {
 }
 
 model ProfileSettings {
-  profileId   String   @unique
-  profile     Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
-  darkMode    Boolean  @default(false)
-  customColor Boolean  @default(false)
-  backColor   String   @default("e6e6e6")
-  borderColor String   @default("808080")
-  accentColor String   @default("000000")
-  fontColor   String   @default("000000")
-  updatedAt   DateTime @updatedAt
+  profileId                String   @unique
+  profile                  Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  darkMode                 Boolean  @default(false)
+  customColor              Boolean  @default(false)
+  backColor                String   @default("e6e6e6")
+  borderColor              String   @default("808080")
+  accentColor              String   @default("000000")
+  fontColor                String   @default("000000")
+  mutualFollowOnlyMessages Boolean  @default(false)
+  updatedAt                DateTime @updatedAt
 
   @@index([profileId])
 }
@@ -564,7 +558,6 @@ model MessageHidden {
   sender     Profile @relation("sender", fields: [senderId], references: [profileId], onDelete: Cascade)
   receiverId String
   receiver   Profile @relation("receiver", fields: [receiverId], references: [profileId], onDelete: Cascade)
-  replyToId  String?
 
   @@index([senderId])
   @@index([receiverId])
