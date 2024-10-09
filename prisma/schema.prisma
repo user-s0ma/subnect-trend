@@ -372,7 +372,7 @@ model Post {
   scope         String?
   scopeListId   String?
   scopeList     List?     @relation("scopeList", fields: [scopeListId], references: [listId], onDelete: SetNull)
-  violation     Boolean?
+  violation     Boolean   @default(false)
   edited        Boolean   @default(false)
   createdAt     DateTime  @default(now())
   deletedAt     DateTime?
