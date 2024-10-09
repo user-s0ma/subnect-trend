@@ -375,6 +375,7 @@ model Post {
   violation     Boolean   @default(false)
   edited        Boolean   @default(false)
   createdAt     DateTime  @default(now())
+  scheduledAt   DateTime?
   deletedAt     DateTime?
 
   Profile         Profile[]         @relation("pinnedPost")
