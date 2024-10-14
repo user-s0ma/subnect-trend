@@ -209,6 +209,21 @@ model Asset {
   @@index([profileId])
 }
 
+model ProfileSettings {
+  profileId             String   @unique
+  profile               Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  darkMode              Boolean  @default(false)
+  customColor           Boolean  @default(false)
+  backColor             String   @default("e6e6e6")
+  borderColor           String   @default("808080")
+  accentColor           String   @default("000000")
+  fontColor             String   @default("000000")
+  messagesFollowingOnly Boolean  @default(false)
+  updatedAt             DateTime @updatedAt
+
+  @@index([profileId])
+}
+
 model AssetImage {
   assetId String  @unique
   asset   Asset   @relation(fields: [assetId], references: [assetId], onDelete: Cascade)
@@ -225,21 +240,6 @@ model AssetVideo {
   spoiler Boolean @default(false)
 
   @@index([assetId])
-}
-
-model ProfileSettings {
-  profileId                String   @unique
-  profile                  Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
-  darkMode                 Boolean  @default(false)
-  customColor              Boolean  @default(false)
-  backColor                String   @default("e6e6e6")
-  borderColor              String   @default("808080")
-  accentColor              String   @default("000000")
-  fontColor                String   @default("000000")
-  mutualFollowOnlyMessages Boolean  @default(false)
-  updatedAt                DateTime @updatedAt
-
-  @@index([profileId])
 }
 
 model ProfileWebPush {

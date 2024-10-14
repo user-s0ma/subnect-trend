@@ -22,7 +22,7 @@ interface TrendScore {
 };
 
 export default {
-  async scheduled(event: any, env: Env, ctx: any) {
+  async scheduled(event: ScheduledEvent, env: Env, ctx: EventContext<Env, any, any>) {
     const connection = connect({ url: env.DATABASE_URL });
     const adapter = new PrismaTiDBCloud(connection);
     const prisma = new PrismaClient({ adapter });
