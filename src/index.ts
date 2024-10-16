@@ -98,7 +98,7 @@ function countWordsAndPhrasesWithTimeWeight(posts: PostTrend[]): Counts {
       phraseCounts[phrase2] = (phraseCounts[phrase2] || 0) + 1.5;
       if (post.word3 && post.word3.trim() !== "") {
         const phrase3 = `${post.word.trim()} ${post.word2.trim()} ${post.word3.trim()}`;
-        phraseCounts[phrase3] = (phraseCounts[phrase3] || 0) + 3;
+        phraseCounts[phrase3] = (phraseCounts[phrase3] || 0) + 2;
       }
     }
   }
