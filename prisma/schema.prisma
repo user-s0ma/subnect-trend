@@ -174,7 +174,6 @@ model Profile {
   PostLike              PostLike[]
   PostReaction          PostReaction[]
   PostQuote             PostQuote[]
-  PostTrend             PostTrend[]
   BookmarkFolder        BookmarkFolder[]
   ReportPost            ReportPost[]
   MessageSender         Message[]             @relation("sender")
@@ -187,6 +186,21 @@ model Profile {
   @@index([profileId])
   @@index([username])
   @@index([createdAt])
+}
+
+model ProfileSettings {
+  profileId             String   @unique
+  profile               Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  darkMode              Boolean  @default(false)
+  customColor           Boolean  @default(false)
+  backColor             String   @default("e6e6e6")
+  borderColor           String   @default("808080")
+  accentColor           String   @default("000000")
+  fontColor             String   @default("000000")
+  messagesFollowingOnly Boolean  @default(false)
+  updatedAt             DateTime @updatedAt
+
+  @@index([profileId])
 }
 
 model Asset {
@@ -205,21 +219,6 @@ model Asset {
   AssetVideo    AssetVideo?
   PostAsset     PostAsset[]
   MessageAsset  MessageAsset[]
-
-  @@index([profileId])
-}
-
-model ProfileSettings {
-  profileId             String   @unique
-  profile               Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
-  darkMode              Boolean  @default(false)
-  customColor           Boolean  @default(false)
-  backColor             String   @default("e6e6e6")
-  borderColor           String   @default("808080")
-  accentColor           String   @default("000000")
-  fontColor             String   @default("000000")
-  messagesFollowingOnly Boolean  @default(false)
-  updatedAt             DateTime @updatedAt
 
   @@index([profileId])
 }
@@ -473,16 +472,11 @@ model PostQuote {
 
 model PostTrend {
   id        String   @id @default(uuid())
-  profileId String
-  profile   Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
   word      String
-  word2     String?
-  word3     String?
+  language  String   @default("en")
   createdAt DateTime @default(now())
 
   @@index([word])
-  @@index([word, word2])
-  @@index([word, word2, word3])
   @@index([createdAt])
 }
 
@@ -515,6 +509,7 @@ model Trend {
   id        String   @id @default(uuid())
   word      String
   postCount Int      @default(0)
+  language  String?
   createdAt DateTime @default(now())
 
   @@index([createdAt])

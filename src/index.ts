@@ -11,7 +11,9 @@ interface WordCount {
 };
 
 interface Counts {
-  phraseCounts: WordCount;
+  [language: string]: {
+    phraseCounts: WordCount;
+  };
 };
 
 interface TrendScore {
@@ -19,6 +21,7 @@ interface TrendScore {
   trendScore: number;
   recentCount: number;
   olderCount: number;
+  language: string;
 };
 
 export default {
@@ -50,88 +53,94 @@ export default {
       take: 10000,
     });
 
-    const recentCounts = countWordsAndPhrasesWithTimeWeight(recentPosts);
-    const olderCounts = countWordsAndPhrasesWithTimeWeight(olderPosts);
+    const recentCounts = countWordsAndPhrases(recentPosts);
+    const olderCounts = countWordsAndPhrases(olderPosts);
 
-    let trendScores = calculateAdvancedTrendScores(recentCounts, olderCounts);
+    let trendScores = calculateTrendScores(recentCounts, olderCounts);
 
     trendScores = removeDuplicatesAndSort(trendScores);
 
     const topTrends = trendScores.slice(0, 10);
 
-    const trendPostCounts = await Promise.all(topTrends.map(async (trend) => {
-      const words = trend.phrase.split(" ");
-      const postCount = await prisma.post.count({
-        where: {
-          AND: words.map(word => ({
+    const trendPostCounts = await Promise.all(
+      topTrends.map(async (trend) => {
+        const postCount = await prisma.post.count({
+          where: {
             text: {
-              contains: word,
-            }
-          })),
-          createdAt: {
-            gt: fortyEightHoursAgo,
+              contains: trend.phrase,
+            },
+            language: trend.language,
+            createdAt: {
+              gt: fortyEightHoursAgo,
+            },
           },
-        },
-      });
-      return { ...trend, postCount };
-    }));
-
+        });
+        return { ...trend, postCount };
+      })
+    );
+    
     await prisma.trend.deleteMany({});
-
     await prisma.trend.createMany({
-      data: trendPostCounts.map(trend => ({
+      data: trendPostCounts.map((trend) => ({
         word: trend.phrase,
         postCount: trend.postCount,
+        language: trend.language,
       })),
     });
   },
 };
 
-function countWordsAndPhrasesWithTimeWeight(posts: PostTrend[]): Counts {
-  const phraseCounts: WordCount = {};
+function countWordsAndPhrases(posts: PostTrend[]): Counts {
+  const counts: Counts = {};
 
   for (const post of posts) {
     if (!post.word || post.word.trim() === "") continue;
-    phraseCounts[post.word.trim()] = (phraseCounts[post.word.trim()] || 0) + 1;
-    if (post.word2 && post.word2.trim() !== "") {
-      const phrase2 = `${post.word.trim()} ${post.word2.trim()}`;
-      phraseCounts[phrase2] = (phraseCounts[phrase2] || 0) + 1.5;
-      if (post.word3 && post.word3.trim() !== "") {
-        const phrase3 = `${post.word.trim()} ${post.word2.trim()} ${post.word3.trim()}`;
-        phraseCounts[phrase3] = (phraseCounts[phrase3] || 0) + 2;
+    const word = post.word.trim();
+    const language = post.language || null;
+
+    if (!counts[language]) {
+      counts[language] = { phraseCounts: {} };
+    }
+
+    counts[language].phraseCounts[word] = (counts[language].phraseCounts[word] || 0) + 1;
+  }
+
+  return counts;
+}
+
+function calculateTrendScores(recentCounts: Counts, olderCounts: Counts): TrendScore[] {
+  const trendScores: TrendScore[] = [];
+
+  for (const language in recentCounts) {
+    const recentPhraseCounts = recentCounts[language].phraseCounts;
+    const olderPhraseCounts = olderCounts[language]?.phraseCounts || {};
+
+    const allPhrases = new Set([
+      ...Object.keys(recentPhraseCounts),
+      ...Object.keys(olderPhraseCounts),
+    ]);
+
+    for (const phrase of allPhrases) {
+      if (phrase.trim() === "") continue;
+
+      const recentCount = recentPhraseCounts[phrase] || 0;
+      const olderCount = olderPhraseCounts[phrase] || 0;
+      const increase = recentCount - olderCount;
+
+      if (increase > 0) {
+        trendScores.push({
+          phrase,
+          trendScore: increase,
+          recentCount,
+          olderCount,
+          language,
+        });
       }
     }
   }
 
-  return { phraseCounts };
-}
-
-function calculateAdvancedTrendScores(recentCounts: Counts, olderCounts: Counts): TrendScore[] {
-  const trendScores: TrendScore[] = [];
-  const maxCount = Math.max(
-    ...Object.values(recentCounts.phraseCounts),
-    ...Object.values(olderCounts.phraseCounts)
-  );
-
-  const allPhrases = new Set([
-    ...Object.keys(recentCounts.phraseCounts),
-    ...Object.keys(olderCounts.phraseCounts)
-  ]);
-
-  for (const phrase of allPhrases) {
-    if (phrase.trim() === "") continue;
-
-    const recentCount = (recentCounts.phraseCounts[phrase] || 0);
-    const olderCount = (olderCounts.phraseCounts[phrase] || 0);
-
-    if (recentCount === 0 && olderCount === 0) continue;
-    
-    const trendScore = recentCount - olderCount;
-    trendScores.push({ phrase, trendScore, recentCount, olderCount });
-  };
-
   return trendScores;
-};
+}
 
 function removeDuplicatesAndSort(trendScores: TrendScore[]): TrendScore[] {
   const uniqueScores = new Map<string, TrendScore>();
@@ -139,7 +148,10 @@ function removeDuplicatesAndSort(trendScores: TrendScore[]): TrendScore[] {
   trendScores.sort((a, b) => b.trendScore - a.trendScore);
 
   for (const score of trendScores) {
-    uniqueScores.set(score.phrase, score);
+    const key = `${score.language}-${score.phrase}`;
+    if (!uniqueScores.has(key)) {
+      uniqueScores.set(key, score);
+    }
   }
 
   return Array.from(uniqueScores.values());
