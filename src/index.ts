@@ -60,7 +60,7 @@ export default {
 
     trendScores = removeDuplicatesAndSort(trendScores);
 
-    const topTrends = trendScores.slice(0, 10);
+    const topTrends = trendScores.slice(0, 20);
 
     const trendPostCounts = await Promise.all(
       topTrends.map(async (trend) => {
@@ -125,7 +125,11 @@ function calculateTrendScores(recentCounts: Counts, olderCounts: Counts): TrendS
 
       const recentCount = recentPhraseCounts[phrase] || 0;
       const olderCount = olderPhraseCounts[phrase] || 0;
-      const increase = recentCount - olderCount;
+      let increase = recentCount - olderCount;
+
+      if (phrase.startsWith("#")) {
+        increase *= 1.5;
+      }
 
       if (increase > 0) {
         trendScores.push({
