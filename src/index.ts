@@ -62,28 +62,11 @@ export default {
 
     const topTrends = trendScores.slice(0, 20);
 
-    const trendPostCounts = await Promise.all(
-      topTrends.map(async (trend) => {
-        const postCount = await prisma.post.count({
-          where: {
-            text: {
-              contains: trend.phrase,
-            },
-            language: trend.language,
-            createdAt: {
-              gt: fortyEightHoursAgo,
-            },
-          },
-        });
-        return { ...trend, postCount };
-      })
-    );
-    
     await prisma.trend.deleteMany({});
     await prisma.trend.createMany({
-      data: trendPostCounts.map((trend) => ({
+      data: topTrends.map((trend) => ({
         word: trend.phrase,
-        postCount: trend.postCount,
+        postCount: trend.recentCount,
         language: trend.language,
       })),
     });
@@ -125,11 +108,7 @@ function calculateTrendScores(recentCounts: Counts, olderCounts: Counts): TrendS
 
       const recentCount = recentPhraseCounts[phrase] || 0;
       const olderCount = olderPhraseCounts[phrase] || 0;
-      let increase = recentCount - olderCount;
-
-      if (phrase.startsWith("#")) {
-        increase *= 1.5;
-      }
+      const increase = recentCount - olderCount;
 
       if (increase > 0) {
         trendScores.push({
@@ -149,7 +128,7 @@ function calculateTrendScores(recentCounts: Counts, olderCounts: Counts): TrendS
 function removeDuplicatesAndSort(trendScores: TrendScore[]): TrendScore[] {
   const uniqueScores = new Map<string, TrendScore>();
 
-  trendScores.sort((a, b) => b.trendScore - a.trendScore);
+  trendScores.sort((a, b) => (b.trendScore * (b.phrase.startsWith("#") ? 1.5 : 1)) - (a.trendScore * (a.phrase.startsWith("#") ? 1.5 : 1)));
 
   for (const score of trendScores) {
     const key = `${score.language}-${score.phrase}`;
