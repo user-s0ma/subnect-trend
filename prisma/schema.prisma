@@ -154,12 +154,12 @@ model Profile {
   hidden         Boolean   @default(false)
   banned         Boolean   @default(false)
   official       Boolean   @default(false)
-  starExpiresAt  DateTime?
   createdAt      DateTime  @default(now())
   deletedAt      DateTime?
 
-  Asset                 Asset[]
+  Subscription          Subscription?
   ProfileSettings       ProfileSettings?
+  Asset                 Asset[]
   ProfileWebPush        ProfileWebPush[]
   Notification          Notification[]
   NotificationSender    Notification[]        @relation("sender")
@@ -178,10 +178,10 @@ model Profile {
   PostQuote             PostQuote[]
   BookmarkFolder        BookmarkFolder[]
   ReportPost            ReportPost[]
-  MessageSender         Message[]             @relation("sender")
+  Message               Message[]
   MessageReceiver       Message[]             @relation("receiver")
   MessageReaction       MessageReaction[]
-  MessageHiddenSender   MessageHidden[]       @relation("sender")
+  MessageHidden         MessageHidden[]
   MessageHiddenReceiver MessageHidden[]       @relation("receiver")
   ReportProfile         ReportProfile[]
   ReportProfileReported ReportProfile[]       @relation("reported")
@@ -189,6 +189,20 @@ model Profile {
   @@index([profileId])
   @@index([username])
   @@index([createdAt])
+}
+
+model Subscription {
+  id                   String   @id @default(uuid())
+  profileId            String   @unique
+  profile              Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  stripeSubscriptionId String   @unique
+  stripeCustomerId     String
+  planName             String
+  currentPeriodEnd     DateTime
+  status               String
+  cancelAtPeriodEnd    Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 }
 
 model ProfileSettings {
@@ -244,16 +258,6 @@ model AssetVideo {
   @@index([assetId])
 }
 
-model ProfileWebPush {
-  pushId    String  @id @default(uuid())
-  profileId String
-  profile   Profile @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
-  endpoint  String  @db.Text
-  keys      String
-
-  @@index([profileId])
-}
-
 model Notification {
   notificationId String    @id @default(uuid())
   profileId      String
@@ -287,6 +291,17 @@ model NotificationSettings {
   appReposts    Boolean @default(true)
   appQuotes     Boolean @default(true)
   appFollows    Boolean @default(true)
+
+  @@index([profileId])
+}
+
+model ProfileWebPush {
+  pushId    String   @id @default(uuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  endpoint  String   @db.Text
+  keys      String
+  createdAt DateTime @default(now())
 
   @@index([profileId])
 }
@@ -520,8 +535,8 @@ model Trend {
 
 model Message {
   messageId  String    @id @default(uuid())
-  senderId   String
-  sender     Profile   @relation("sender", fields: [senderId], references: [profileId], onDelete: Cascade)
+  profileId  String
+  profile    Profile   @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
   receiverId String
   receiver   Profile   @relation("receiver", fields: [receiverId], references: [profileId], onDelete: Cascade)
   replyToId  String?
@@ -530,13 +545,12 @@ model Message {
   createdAt  DateTime  @default(now())
   readAt     DateTime?
   deletedAt  DateTime?
-  violation  Boolean?
 
   MessageReplyTo  Message[]         @relation("replyTo")
   MessageAsset    MessageAsset[]
   MessageReaction MessageReaction[]
 
-  @@index([senderId])
+  @@index([profileId])
   @@index([receiverId])
   @@index([createdAt])
 }
@@ -567,14 +581,15 @@ model MessageAsset {
 }
 
 model MessageHidden {
-  hiddenId   String  @id @default(uuid())
-  senderId   String
-  sender     Profile @relation("sender", fields: [senderId], references: [profileId], onDelete: Cascade)
-  receiverId String
-  receiver   Profile @relation("receiver", fields: [receiverId], references: [profileId], onDelete: Cascade)
+  hiddenId  String  @id @default(uuid())
+  profileId String
+  profile   Profile @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  senderId  String
+  sender    Profile @relation("receiver", fields: [senderId], references: [profileId], onDelete: Cascade)
 
+  @@unique([profileId, senderId])
+  @@index([profileId])
   @@index([senderId])
-  @@index([receiverId])
 }
 
 model ReportProfile {
