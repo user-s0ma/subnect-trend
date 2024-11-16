@@ -112,17 +112,17 @@ model AuthChangeEmail {
 }
 
 model AuthBanIP {
-  banId    String   @id @default(uuid())
-  ip       String   @unique
-  bannedAt DateTime @default(now())
+  banId     String   @id @default(uuid())
+  ip        String   @unique
+  createdAt DateTime @default(now())
 
   @@index([ip])
 }
 
 model AuthBanEmail {
-  banId    String   @id @default(uuid())
-  email    String   @unique
-  bannedAt DateTime @default(now())
+  banId     String   @id @default(uuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
 
   @@index([email])
 }
@@ -140,7 +140,7 @@ model Profile {
   profileId      String    @id @default(uuid())
   userId         String
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  username       String    @unique @default(nanoid(15))
+  username       String    @unique
   nickname       String    @default("New user")
   iconId         String
   icon           Asset     @relation("icon", fields: [iconId], references: [assetId])
@@ -154,8 +154,8 @@ model Profile {
   hidden         Boolean   @default(false)
   banned         Boolean   @default(false)
   official       Boolean   @default(false)
-  createdAt      DateTime  @default(now())
   deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
 
   Subscription          Subscription?
   ProfileSettings       ProfileSettings?
@@ -185,6 +185,10 @@ model Profile {
   MessageHiddenReceiver MessageHidden[]       @relation("receiver")
   ReportProfile         ReportProfile[]
   ReportProfileReported ReportProfile[]       @relation("reported")
+  AdUrlView             AdUrlView[]
+  AdPost                AdPost[]
+  AdPostRead            AdPostRead[]
+  AdHeader              AdHeader[]
 
   @@index([profileId])
   @@index([username])
@@ -192,7 +196,7 @@ model Profile {
 }
 
 model Subscription {
-  id                   String   @id @default(uuid())
+  subscriptionId       String   @id @default(uuid())
   profileId            String   @unique
   profile              Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
   stripeSubscriptionId String   @unique
@@ -201,8 +205,8 @@ model Subscription {
   currentPeriodEnd     DateTime
   status               String
   cancelAtPeriodEnd    Boolean  @default(false)
-  createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+  createdAt            DateTime @default(now())
 }
 
 model ProfileSettings {
@@ -236,6 +240,7 @@ model Asset {
   AssetVideo    AssetVideo?
   PostAsset     PostAsset[]
   MessageAsset  MessageAsset[]
+  AdHeader      AdHeader[]
 
   @@index([profileId])
 }
@@ -268,8 +273,8 @@ model Notification {
   sender         Profile   @relation("sender", fields: [senderId], references: [profileId])
   postId         String?
   post           Post?     @relation(fields: [postId], references: [postId], onDelete: Cascade)
-  createdAt      DateTime  @default(now())
   readAt         DateTime?
+  createdAt      DateTime  @default(now())
 
   @@index([profileId])
   @@index([createdAt])
@@ -384,16 +389,14 @@ model Post {
   quoteCount    Int       @default(0)
   reactionCount Int       @default(0)
   likeCount     Int       @default(0)
-  readCount     Int       @default(0)
-  viewCount     Int       @default(0)
   scope         String?
   scopeListId   String?
   scopeList     List?     @relation("scopeList", fields: [scopeListId], references: [listId], onDelete: SetNull)
   violation     Boolean   @default(false)
   edited        Boolean   @default(false)
-  createdAt     DateTime  @default(now())
   scheduledAt   DateTime?
   deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
 
   Profile         Profile[]         @relation("pinnedPost")
   Notification    Notification[]
@@ -407,6 +410,7 @@ model Post {
   PostQuoteParent PostQuote[]       @relation("parent")
   Bookmark        Bookmark[]
   ReportPost      ReportPost[]
+  AdPost          AdPost[]
 
   @@index([profileId])
   @@index([replyToId])
@@ -414,11 +418,11 @@ model Post {
 }
 
 model PostEditHistory {
-  editId   String   @id @default(uuid())
-  postId   String
-  post     Post     @relation(fields: [postId], references: [postId], onDelete: Cascade)
-  text     String   @db.Text
-  editedAt DateTime @default(now())
+  editId    String   @id @default(uuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [postId], onDelete: Cascade)
+  text      String   @db.Text
+  createdAt DateTime @default(now())
 
   @@index([postId])
 }
@@ -440,7 +444,7 @@ model PostView {
   profile   Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
   postId    String
   post      Post     @relation(fields: [postId], references: [postId], onDelete: Cascade)
-  viewedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([postId])
   @@index([profileId])
@@ -488,13 +492,23 @@ model PostQuote {
   @@index([profileId])
 }
 
-model PostTrend {
-  id        String   @id @default(uuid())
+model PostTrendWord {
+  wordId    String   @id @default(uuid())
   word      String
   language  String   @default("en")
   createdAt DateTime @default(now())
 
   @@index([word])
+  @@index([createdAt])
+}
+
+model PostTrend {
+  trendId   String   @id @default(uuid())
+  word      String
+  postCount Int      @default(0)
+  language  String?
+  createdAt DateTime @default(now())
+
   @@index([createdAt])
 }
 
@@ -523,16 +537,6 @@ model Bookmark {
   @@index([folderId])
 }
 
-model Trend {
-  id        String   @id @default(uuid())
-  word      String
-  postCount Int      @default(0)
-  language  String?
-  createdAt DateTime @default(now())
-
-  @@index([createdAt])
-}
-
 model Message {
   messageId  String    @id @default(uuid())
   profileId  String
@@ -542,9 +546,9 @@ model Message {
   replyToId  String?
   replyTo    Message?  @relation("replyTo", fields: [replyToId], references: [messageId])
   text       String?   @db.Text
-  createdAt  DateTime  @default(now())
   readAt     DateTime?
   deletedAt  DateTime?
+  createdAt  DateTime  @default(now())
 
   MessageReplyTo  Message[]         @relation("replyTo")
   MessageAsset    MessageAsset[]
@@ -618,6 +622,81 @@ model ReportPost {
 
   @@index([profileId])
   @@index([postId])
+}
+
+model AdUrl {
+  urlId     String   @id @default(uuid())
+  url       String   @db.Text
+  createdAt DateTime @default(now())
+
+  AdUrlView AdUrlView[]
+  AdPost    AdPost[]
+  AdHeader  AdHeader[]
+
+  @@index([urlId])
+}
+
+model AdUrlView {
+  viewId    String   @id @default(uuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  urlId     String
+  url       AdUrl    @relation(fields: [urlId], references: [urlId], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([profileId])
+  @@index([urlId])
+  @@index([createdAt])
+}
+
+model AdPost {
+  adId       String       @id @default(uuid())
+  profileId  String
+  profile    Profile      @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  name       String
+  postId     String
+  post       Post         @relation(fields: [postId], references: [postId], onDelete: Cascade)
+  urlId      String?
+  url        AdUrl?       @relation(fields: [urlId], references: [urlId], onDelete: Cascade)
+  budget     Float
+  startDate  DateTime
+  endDate    DateTime
+  createdAt  DateTime     @default(now())
+  AdPostRead AdPostRead[]
+
+  @@index([profileId])
+  @@index([postId])
+}
+
+model AdPostRead {
+  readId    String   @id @default(uuid())
+  profileId String?
+  profile   Profile? @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  adId      String
+  ad        AdPost   @relation(fields: [adId], references: [adId], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([profileId])
+  @@index([createdAt])
+}
+
+model AdHeader {
+  adId      String   @id @default(uuid())
+  profileId String
+  profile   Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  name      String
+  assetId   String
+  asset     Asset    @relation(fields: [assetId], references: [assetId])
+  text      String?  @db.Text
+  urlId     String?
+  url       AdUrl?   @relation(fields: [urlId], references: [urlId], onDelete: Cascade)
+  budget    Float
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime @default(now())
+
+  @@index([profileId])
 }
 
 model AdminLog {

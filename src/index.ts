@@ -1,4 +1,4 @@
-import { PrismaClient, PostTrend } from "@prisma/client";
+import { PrismaClient, PostTrendWord } from "@prisma/client";
 import { PrismaTiDBCloud } from "@tidbcloud/prisma-adapter";
 import { connect } from "@tidbcloud/serverless";
 
@@ -34,7 +34,7 @@ export default {
     const fortyEightHoursAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000);
     const ninetySixHoursAgo = new Date(now.getTime() - 96 * 60 * 60 * 1000);
 
-    const recentPosts = await prisma.postTrend.findMany({
+    const recentPosts = await prisma.postTrendWord.findMany({
       where: {
         createdAt: {
           gte: fortyEightHoursAgo,
@@ -43,7 +43,7 @@ export default {
       take: 10000,
     });
 
-    const olderPosts = await prisma.postTrend.findMany({
+    const olderPosts = await prisma.postTrendWord.findMany({
       where: {
         createdAt: {
           gte: ninetySixHoursAgo,
@@ -62,8 +62,8 @@ export default {
 
     const topTrends = trendScores.slice(0, 20);
 
-    await prisma.trend.deleteMany({});
-    await prisma.trend.createMany({
+    await prisma.postTrend.deleteMany({});
+    await prisma.postTrend.createMany({
       data: topTrends.map((trend) => ({
         word: trend.phrase,
         postCount: trend.recentCount,
@@ -73,7 +73,7 @@ export default {
   },
 };
 
-function countWordsAndPhrases(posts: PostTrend[]): Counts {
+function countWordsAndPhrases(posts: PostTrendWord[]): Counts {
   const counts: Counts = {};
 
   for (const post of posts) {
