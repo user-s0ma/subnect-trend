@@ -638,8 +638,8 @@ model AdUrl {
 
 model AdUrlView {
   viewId    String   @id @default(uuid())
-  profileId String
-  profile   Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  profileId String?
+  profile   Profile? @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
   urlId     String
   url       AdUrl    @relation(fields: [urlId], references: [urlId], onDelete: Cascade)
   createdAt DateTime @default(now())

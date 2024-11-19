@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "deploy": "dotenv -e .env.production -- npx wrangler deploy",
+    "deploy": "dotenv -e .env.production -- npx prisma generate && wrangler deploy",
     "dev": "dotenv -e .env.development -- npx prisma generate && wrangler dev --test-scheduled",
     "start": "dotenv -e .env.development -- npx prisma generate && wrangler dev",
     "test": "dotenv -e .env.development -- npx vitest",
