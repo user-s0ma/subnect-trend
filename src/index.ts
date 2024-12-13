@@ -1,4 +1,4 @@
-import { PrismaClient, PostTrendWord } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { PrismaTiDBCloud } from "@tidbcloud/prisma-adapter";
 import { connect } from "@tidbcloud/serverless";
 
@@ -20,7 +20,6 @@ interface TrendScore {
   phrase: string;
   trendScore: number;
   recentCount: number;
-  olderCount: number;
   language: string;
 };
 
@@ -34,33 +33,49 @@ export default {
     const fortyEightHoursAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000);
     const ninetySixHoursAgo = new Date(now.getTime() - 96 * 60 * 60 * 1000);
 
-    const recentPosts = await prisma.postTrendWord.findMany({
+    const recentCountsRaw = await prisma.postTrendWord.groupBy({
+      by: ["language", "word"],
       where: {
         createdAt: {
           gte: fortyEightHoursAgo,
         },
       },
-      take: 10000,
+      take: 1000,
+      _count: {
+        word: true
+      },
+      orderBy: {
+        _count: {
+          word: "desc",
+        },
+      }
     });
 
-    const olderPosts = await prisma.postTrendWord.findMany({
+    const olderCountsRaw = await prisma.postTrendWord.groupBy({
+      by: ["language", "word"],
       where: {
         createdAt: {
           gte: ninetySixHoursAgo,
           lt: fortyEightHoursAgo,
         },
       },
-      take: 10000,
+      take: 1000,
+      _count: {
+        word: true
+      },
+      orderBy: {
+        _count: {
+          word: "desc",
+        },
+      }
     });
 
-    const recentCounts = countWordsAndPhrases(recentPosts);
-    const olderCounts = countWordsAndPhrases(olderPosts);
+    const recentCounts = convertGroupByResultsToCounts(recentCountsRaw);
+    const olderCounts = convertGroupByResultsToCounts(olderCountsRaw);
 
-    let trendScores = calculateTrendScores(recentCounts, olderCounts);
+    const trendScores = calculateTrendScores(recentCounts, olderCounts);
 
-    trendScores = removeDuplicatesAndSort(trendScores);
-
-    const topTrends = trendScores.slice(0, 20);
+    const topTrends = trendScores.sort((a, b) => b.trendScore - a.trendScore).slice(0, 10);
 
     await prisma.postTrend.deleteMany({});
     await prisma.postTrend.createMany({
@@ -73,21 +88,16 @@ export default {
   },
 };
 
-function countWordsAndPhrases(posts: PostTrendWord[]): Counts {
+function convertGroupByResultsToCounts(groupedData: { language: string | null, word: string, _count: { word: number } }[]): Counts {
   const counts: Counts = {};
-
-  for (const post of posts) {
-    if (!post.word || post.word.trim() === "") continue;
-    const word = post.word.trim();
-    const language = post.language || null;
+  for (const record of groupedData) {
+    const language = record.language || null;
 
     if (!counts[language]) {
       counts[language] = { phraseCounts: {} };
     }
-
-    counts[language].phraseCounts[word] = (counts[language].phraseCounts[word] || 0) + 1;
+    counts[language].phraseCounts[record.word] = record._count.word;
   }
-
   return counts;
 }
 
@@ -115,7 +125,6 @@ function calculateTrendScores(recentCounts: Counts, olderCounts: Counts): TrendS
           phrase,
           trendScore: increase,
           recentCount,
-          olderCount,
           language,
         });
       }
@@ -123,19 +132,4 @@ function calculateTrendScores(recentCounts: Counts, olderCounts: Counts): TrendS
   }
 
   return trendScores;
-}
-
-function removeDuplicatesAndSort(trendScores: TrendScore[]): TrendScore[] {
-  const uniqueScores = new Map<string, TrendScore>();
-
-  trendScores.sort((a, b) => (b.trendScore * (b.phrase.startsWith("#") ? 1.5 : 1)) - (a.trendScore * (a.phrase.startsWith("#") ? 1.5 : 1)));
-
-  for (const score of trendScores) {
-    const key = `${score.language}-${score.phrase}`;
-    if (!uniqueScores.has(key)) {
-      uniqueScores.set(key, score);
-    }
-  }
-
-  return Array.from(uniqueScores.values());
 }
