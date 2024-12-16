@@ -183,12 +183,11 @@ model Profile {
   MessageReaction       MessageReaction[]
   MessageHidden         MessageHidden[]
   MessageHiddenReceiver MessageHidden[]       @relation("receiver")
-  ReportProfile         ReportProfile[]
-  ReportProfileReported ReportProfile[]       @relation("reported")
-  AdUrlView             AdUrlView[]
+  UrlView               UrlView[]
   AdPost                AdPost[]
   AdPostRead            AdPostRead[]
-  AdHeader              AdHeader[]
+  ReportProfile         ReportProfile[]
+  ReportProfileReported ReportProfile[]       @relation("reported")
 
   @@index([profileId])
   @@index([username])
@@ -240,7 +239,6 @@ model Asset {
   AssetVideo    AssetVideo?
   PostAsset     PostAsset[]
   MessageAsset  MessageAsset[]
-  AdHeader      AdHeader[]
 
   @@index([profileId])
 }
@@ -312,6 +310,7 @@ model ProfileWebPush {
 }
 
 model Follow {
+  followId   String   @id @default(uuid())
   profileId  String
   profile    Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
   followerId String
@@ -324,6 +323,7 @@ model Follow {
 }
 
 model Block {
+  blockId   String   @id @default(uuid())
   profileId String
   profile   Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
   blockedId String
@@ -354,6 +354,7 @@ model List {
 }
 
 model ListMember {
+  memberId  String   @id @default(uuid())
   listId    String
   list      List     @relation(fields: [listId], references: [listId], onDelete: Cascade)
   profileId String
@@ -365,6 +366,7 @@ model ListMember {
 }
 
 model ListFollow {
+  followId   String   @id @default(uuid())
   listId     String
   list       List     @relation(fields: [listId], references: [listId], onDelete: Cascade)
   followerId String
@@ -526,11 +528,12 @@ model BookmarkFolder {
 }
 
 model Bookmark {
-  postId    String
-  post      Post           @relation(fields: [postId], references: [postId], onDelete: Cascade)
-  folderId  String
-  folder    BookmarkFolder @relation(fields: [folderId], references: [folderId], onDelete: Cascade)
-  createdAt DateTime       @default(now())
+  bookmarkId String         @id @default(uuid())
+  postId     String
+  post       Post           @relation(fields: [postId], references: [postId], onDelete: Cascade)
+  folderId   String
+  folder     BookmarkFolder @relation(fields: [folderId], references: [folderId], onDelete: Cascade)
+  createdAt  DateTime       @default(now())
 
   @@unique([postId, folderId])
   @@index([postId])
@@ -585,15 +588,71 @@ model MessageAsset {
 }
 
 model MessageHidden {
-  hiddenId  String  @id @default(uuid())
-  profileId String
-  profile   Profile @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
-  senderId  String
-  sender    Profile @relation("receiver", fields: [senderId], references: [profileId], onDelete: Cascade)
+  hiddenId   String  @id @default(uuid())
+  profileId  String
+  profile    Profile @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  receiverId String
+  receiver   Profile @relation("receiver", fields: [receiverId], references: [profileId], onDelete: Cascade)
 
-  @@unique([profileId, senderId])
+  @@unique([profileId, receiverId])
   @@index([profileId])
-  @@index([senderId])
+  @@index([receiverId])
+}
+
+model Url {
+  urlId     String   @id @default(uuid())
+  url       String   @db.Text
+  createdAt DateTime @default(now())
+
+  UrlView UrlView[]
+  AdPost  AdPost[]
+
+  @@index([urlId])
+}
+
+model UrlView {
+  viewId    String   @id @default(uuid())
+  profileId String?
+  profile   Profile? @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  urlId     String
+  url       Url      @relation(fields: [urlId], references: [urlId], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([profileId])
+  @@index([urlId])
+  @@index([createdAt])
+}
+
+model AdPost {
+  adId       String       @id @default(uuid())
+  profileId  String
+  profile    Profile      @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  name       String
+  postId     String
+  post       Post         @relation(fields: [postId], references: [postId], onDelete: Cascade)
+  urlId      String?
+  url        Url?         @relation(fields: [urlId], references: [urlId], onDelete: SetNull)
+  budget     Float
+  startDate  DateTime
+  endDate    DateTime
+  createdAt  DateTime     @default(now())
+  AdPostRead AdPostRead[]
+
+  @@index([profileId])
+  @@index([postId])
+}
+
+model AdPostRead {
+  readId    String   @id @default(uuid())
+  profileId String?
+  profile   Profile? @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
+  adId      String
+  ad        AdPost   @relation(fields: [adId], references: [adId], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([profileId])
+  @@index([createdAt])
 }
 
 model ReportProfile {
@@ -622,81 +681,6 @@ model ReportPost {
 
   @@index([profileId])
   @@index([postId])
-}
-
-model AdUrl {
-  urlId     String   @id @default(uuid())
-  url       String   @db.Text
-  createdAt DateTime @default(now())
-
-  AdUrlView AdUrlView[]
-  AdPost    AdPost[]
-  AdHeader  AdHeader[]
-
-  @@index([urlId])
-}
-
-model AdUrlView {
-  viewId    String   @id @default(uuid())
-  profileId String?
-  profile   Profile? @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
-  urlId     String
-  url       AdUrl    @relation(fields: [urlId], references: [urlId], onDelete: Cascade)
-  createdAt DateTime @default(now())
-
-  @@index([profileId])
-  @@index([urlId])
-  @@index([createdAt])
-}
-
-model AdPost {
-  adId       String       @id @default(uuid())
-  profileId  String
-  profile    Profile      @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
-  name       String
-  postId     String
-  post       Post         @relation(fields: [postId], references: [postId], onDelete: Cascade)
-  urlId      String?
-  url        AdUrl?       @relation(fields: [urlId], references: [urlId], onDelete: Cascade)
-  budget     Float
-  startDate  DateTime
-  endDate    DateTime
-  createdAt  DateTime     @default(now())
-  AdPostRead AdPostRead[]
-
-  @@index([profileId])
-  @@index([postId])
-}
-
-model AdPostRead {
-  readId    String   @id @default(uuid())
-  profileId String?
-  profile   Profile? @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
-  adId      String
-  ad        AdPost   @relation(fields: [adId], references: [adId], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([profileId])
-  @@index([createdAt])
-}
-
-model AdHeader {
-  adId      String   @id @default(uuid())
-  profileId String
-  profile   Profile  @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
-  name      String
-  assetId   String
-  asset     Asset    @relation(fields: [assetId], references: [assetId])
-  text      String?  @db.Text
-  urlId     String?
-  url       AdUrl?   @relation(fields: [urlId], references: [urlId], onDelete: Cascade)
-  budget    Float
-  startDate DateTime
-  endDate   DateTime
-  createdAt DateTime @default(now())
-
-  @@index([profileId])
 }
 
 model AdminLog {
