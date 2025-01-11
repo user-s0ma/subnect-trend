@@ -138,15 +138,15 @@ model UserSettings {
 
 model Profile {
   profileId      String    @id @default(uuid())
-  userId         String
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String?
+  user           User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
   username       String    @unique
-  nickname       String    @default("New user")
-  iconId         String
-  icon           Asset     @relation("icon", fields: [iconId], references: [assetId])
+  displayName    String    @default("New user")
+  iconId         String?
+  icon           Asset?    @relation("icon", fields: [iconId], references: [assetId])
   headerId       String?
   header         Asset?    @relation("header", fields: [headerId], references: [assetId])
-  bio            String?   @db.Text
+  description    String?   @db.Text
   pinnedPostId   String?
   pinnedPost     Post?     @relation("pinnedPost", fields: [pinnedPostId], references: [postId])
   followingCount Int       @default(0)
@@ -156,6 +156,12 @@ model Profile {
   official       Boolean   @default(false)
   deletedAt      DateTime?
   createdAt      DateTime  @default(now())
+  apId           String?   @unique
+  apDomain       String?
+  apFollowersUrl String?
+  apInboxUrl     String?
+  apOutboxUrl    String?
+  apPublicKey    String?   @db.Text
 
   Subscription          Subscription?
   ProfileSettings       ProfileSettings?
@@ -229,8 +235,10 @@ model Asset {
   profile   Profile? @relation(fields: [profileId], references: [profileId], onDelete: Cascade)
   public    Boolean  @default(true)
   assetName String
+  assetType String?
   assetSize Int
   createdAt DateTime @default(now())
+  apId      String?  @unique
 
   ProfileHeader Profile[]      @relation("header")
   ProfileIcon   Profile[]      @relation("icon")
@@ -386,7 +394,7 @@ model Post {
   repost        Boolean   @default(false)
   text          String?   @db.Text
   language      String    @default("en")
-  repliesCount  Int       @default(0)
+  replyCount    Int       @default(0)
   repostCount   Int       @default(0)
   quoteCount    Int       @default(0)
   reactionCount Int       @default(0)
@@ -399,6 +407,7 @@ model Post {
   scheduledAt   DateTime?
   deletedAt     DateTime?
   createdAt     DateTime  @default(now())
+  apId          String?   @unique
 
   Profile         Profile[]         @relation("pinnedPost")
   Notification    Notification[]
@@ -681,6 +690,15 @@ model ReportPost {
 
   @@index([profileId])
   @@index([postId])
+}
+
+model ActivityPubDomain {
+  domainId  String   @id @default(uuid())
+  domain    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([domain])
 }
 
 model AdminLog {
